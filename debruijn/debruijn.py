@@ -128,13 +128,29 @@ def solve_out_tips(graph, ending_nodes):
     pass
 
 def get_starting_nodes(graph):
-    pass
+    entry_node = []
+    for node in graph.nodes:
+        if len(list(graph.predecessors(node))) == 0:
+            entry_node.append(node)
+    return entry_node
 
 def get_sink_nodes(graph):
-    pass
+    sink_node = []
+    for node in graph.nodes:
+        if len(list(graph.successors(node))) == 0:
+            sink_node.append(node)
+    return sink_node
 
 def get_contigs(graph, starting_nodes, ending_nodes):
-    pass
+    contig_list = []
+
+    for start in starting_nodes:
+        for end in ending_nodes:
+           if nx.has_path(graph,start, end):
+               path = list(nx.all_simple_paths(graph, start, end))[0]
+               len_path = len(path)
+               contig_list.append((path, len_path))
+    return contig_list
 
 def save_contigs(contigs_list, output_file):
     pass
@@ -180,17 +196,18 @@ def main():
     """
     # Get arguments
     args = get_arguments()
-    print(args)
     dico = build_kmer_dict(args.fastq_file, args.kmer_size)
-    print(dico)
     graph = build_graph(dico)
+    start_node = get_starting_nodes(graph)
+    end_node = get_sink_nodes(graph)
+    print(get_contigs(graph, start_node, end_node))
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
-    # graphe
-    # Plot the graph
-    draw_graph(graph, "graph_image")
-    #Save the graph in file
-    save_graph(graph, "graph")
+    # # graphe
+    # # Plot the graph
+    # draw_graph(graph, "graph_image")
+    # #Save the graph in file
+    # save_graph(graph, "graph")
 
 
 if __name__ == '__main__':
