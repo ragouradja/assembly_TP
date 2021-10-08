@@ -17,20 +17,20 @@ import argparse
 import os
 import sys
 import networkx as nx
-import matplotlib
+import matplotlib.pyplot as plt
 from operator import itemgetter
 import random
 random.seed(9001)
 from random import randint
 import statistics
-
-__author__ = "Your Name"
+import pickle
+__author__ = "Ragousandirane Radjasandirane"
 __copyright__ = "Universite Paris Diderot"
-__credits__ = ["Your Name"]
+__credits__ = ["Ragousandirane Radjasandirane"]
 __license__ = "GPL"
 __version__ = "1.0.0"
-__maintainer__ = "Your Name"
-__email__ = "your@email.fr"
+__maintainer__ = "Ragousandirane Radjasandirane"
+__email__ = "radja.ragou@gmail.fr"
 __status__ = "Developpement"
 
 def isfile(path):
@@ -68,20 +68,38 @@ def get_arguments():
 
 
 def read_fastq(fastq_file):
-    pass
+    with open(fastq_file) as filin:
+        content = filin.readlines()
+        for i in range(1,len(content),4):
+            yield content[i].strip()
 
 
 def cut_kmer(read, kmer_size):
-    pass
+    for i in range(len(read) - (kmer_size - 1)):
+        yield read[i:i+kmer_size]
 
 
 def build_kmer_dict(fastq_file, kmer_size):
-    pass
+    gen_seq = read_fastq(fastq_file)
+    seq = gen_seq
+    dict_kmer = {}
+    for read in seq:
+        kmer_list = cut_kmer(read, kmer_size)
+        for kmer in kmer_list:
+            if kmer not in dict_kmer:
+                dict_kmer[kmer] = 1
+            else:
+                dict_kmer[kmer] += 1
+    return dict_kmer
 
 
 def build_graph(kmer_dict):
-    pass
-
+    G = nx.DiGraph()
+    for kmer,weight in kmer_dict.items():
+        value1 = kmer[:-1]
+        value2 = kmer[1:]
+        G.add_edge(value1, value2, weight = weight)
+    return G
 
 def remove_paths(graph, path_list, delete_entry_node, delete_sink_node):
     pass
@@ -162,16 +180,17 @@ def main():
     """
     # Get arguments
     args = get_arguments()
-
+    print(args)
+    dico = build_kmer_dict(args.fastq_file, args.kmer_size)
+    print(dico)
+    graph = build_graph(dico)
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
     # graphe
     # Plot the graph
-    # if args.graphimg_file:
-    #     draw_graph(graph, args.graphimg_file)
-    # Save the graph in file
-    # if args.graph_file:
-    #     save_graph(graph, args.graph_file)
+    draw_graph(graph, "graph_image")
+    #Save the graph in file
+    save_graph(graph, "graph")
 
 
 if __name__ == '__main__':
