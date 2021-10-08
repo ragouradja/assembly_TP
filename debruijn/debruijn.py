@@ -143,18 +143,34 @@ def get_sink_nodes(graph):
 
 def get_contigs(graph, starting_nodes, ending_nodes):
     contig_list = []
-
     for start in starting_nodes:
         for end in ending_nodes:
            if nx.has_path(graph,start, end):
                path = list(nx.all_simple_paths(graph, start, end))[0]
+               base = path[0]
+               seq = base
+
                len_path = len(path)
-               contig_list.append((path, len_path))
+
+               for i in range(1,len_path):
+                   seq += path[i][-1]
+
+
+               final_len = len(seq)
+               contig_list.append((seq, final_len))
     return contig_list
 
 def save_contigs(contigs_list, output_file):
-    pass
-
+    count = 1
+    with open(output_file, "wt") as filout:  
+        for contigs in contigs_list:
+            path = contigs[0]
+            len_contig = contigs[1]
+            fasta_seq = fill(path)
+            header = f">contig_{count} len={len_contig}"
+            filout.write(f"{header}\n")
+            filout.write(f"{fasta_seq}\n")
+            count += 1
 
 def fill(text, width=80):
     """Split text with a line return to respect fasta format"""
@@ -200,7 +216,11 @@ def main():
     graph = build_graph(dico)
     start_node = get_starting_nodes(graph)
     end_node = get_sink_nodes(graph)
-    print(get_contigs(graph, start_node, end_node))
+    list_contig = get_contigs(graph, start_node, end_node)
+    test_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "test.fna"))
+    contig = [("TCAGCGAT", 8), ("TCAGCGAA",8), ("ACAGCGAT", 8), ("ACAGCGAA", 8)]
+
+    save_contigs(list_contig, "fichier.txt")
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
     # # graphe
