@@ -14,11 +14,12 @@
 """Perform assembly based on debruijn graph."""
 
 import argparse
+from decimal import getcontext
 import os
 import sys
 import networkx as nx
 import matplotlib.pyplot as plt
-from operator import itemgetter, le, sub
+from operator import itemgetter, le, length_hint, sub
 import random
 random.seed(9001)
 from random import randint
@@ -120,7 +121,6 @@ def std(data):
 
 def select_best_path(graph, path_list, path_length, weight_avg_list, 
                      delete_entry_node=False, delete_sink_node=False):
-    print(weight_avg_list)
     std_weight = std(weight_avg_list)
     if std_weight > 0:
         max_weight = max(weight_avg_list)
@@ -161,9 +161,9 @@ def solve_bubble(graph, ancestor_node, descendant_node):
     return graph
 
 def simplify_bubbles(graph):
+    bubble = False
 
     for node in graph.nodes:
-        bubble = False
         node_predecessor = list(graph.predecessors(node))
         nb_pred = len(node_predecessor)
         if nb_pred > 1:
@@ -179,10 +179,63 @@ def simplify_bubbles(graph):
     return graph
 
 def solve_entry_tips(graph, starting_nodes):
-    pass
+    for node in graph.nodes:
+        all_predecessors = list(nx.edge_dfs(graph,node, orientation='reverse'))
+        if len(all_predecessors) > 1:
+            first_path = [node]
+            second_path = [node] 
+            first_connected = False
+            second_connected = False
+            for predecessor in all_predecessors:
+                if not first_connected:
+                    first_path.append(predecessor[0])
+                else:
+                    second_path.append(predecessor[0])
+                if predecessor[0] in starting_nodes:
+                    if not first_connected:
+                        first_connected = True
+                    else:
+                        second_connected = True
+            if first_connected and second_connected:
+                first_path.reverse()
+                second_path.reverse()
+                length_list = [len(first_path), len(second_path)]
+                weight_list = [path_average_weight(graph, first_path),
+                path_average_weight(graph, second_path)]
+                graph = select_best_path(graph, [first_path, second_path],
+                length_list, weight_list, delete_entry_node = True)
+                solve_entry_tips(graph, starting_nodes)
+                break
+    return graph
 
 def solve_out_tips(graph, ending_nodes):
-    pass
+    for node in list(graph.nodes)[::-1]:
+        all_successors = list(nx.edge_dfs(graph,node))
+        if len(all_successors) > 1:
+            first_path = [node]
+            second_path = [node] 
+            first_connected = False
+            second_connected = False
+            for successor in all_successors:
+                if not first_connected:
+                    first_path.append(successor[1])
+                else:
+                    second_path.append(successor[1])
+                if successor[1] in ending_nodes:
+                    if not first_connected:
+                        first_connected = True
+                    else:
+                        second_connected = True
+            if first_connected and second_connected:
+                length_list = [len(first_path), len(second_path)]
+                weight_list = [path_average_weight(graph, first_path),
+                path_average_weight(graph, second_path)]
+                graph = select_best_path(graph, [first_path, second_path],
+                length_list, weight_list, delete_sink_node = True)
+                solve_entry_tips(graph, ending_nodes)
+                break
+    return graph
+
 
 def get_starting_nodes(graph):
     entry_node = []
@@ -206,13 +259,9 @@ def get_contigs(graph, starting_nodes, ending_nodes):
                path = list(nx.all_simple_paths(graph, start, end))[0]
                base = path[0]
                seq = base
-
                len_path = len(path)
-
                for i in range(1,len_path):
                    seq += path[i][-1]
-
-
                final_len = len(seq)
                contig_list.append((seq, final_len))
     return contig_list
@@ -268,22 +317,19 @@ def main():
     Main program function
     """
     # Get arguments
-    # args = get_arguments()
-    # dico = build_kmer_dict(args.fastq_file, args.kmer_size)
-    # graph = build_graph(dico)
-    # start_node = get_starting_nodes(graph)
-    # end_node = get_sink_nodes(graph)
-    # list_contig = get_contigs(graph, start_node, end_node)
-    # path_average_weight(graph, list_contig[0][0])
+    args = get_arguments()
+    dico = build_kmer_dict(args.fastq_file, args.kmer_size)
+    graph = build_graph(dico)
+ 
+    starting_nodes = get_starting_nodes(graph)
+    sink_nodes = get_sink_nodes(graph)
+    graph = simplify_bubbles(graph)
+    graph_without_entry_tips = solve_entry_tips(graph, starting_nodes)
+    graph_final = solve_out_tips(graph_without_entry_tips, sink_nodes)
 
-    graph_1 = nx.DiGraph()
-    graph_1.add_weighted_edges_from([(1, 2, 10), (3, 2, 10), (2, 4, 15), 
-                                     (4, 5, 15), (2, 10,10), (10, 5,10),
-                                     (2, 8, 3), (8, 9, 3), (9, 5, 3),
-                                     (5, 6, 10), (5, 7, 10)])
-    graph_1 = solve_bubble(graph_1, 2, 5)
-    simplify_bubbles(graph_1)
-    #save_contigs(list_contig, "fichier.txt")
+
+    list_contigs = get_contigs(graph_final, starting_nodes, sink_nodes)
+    save_contigs(list_contigs, args.output_file)
     # Fonctions de dessin du graphe
     # A decommenter si vous souhaitez visualiser un petit 
     # # graphe
